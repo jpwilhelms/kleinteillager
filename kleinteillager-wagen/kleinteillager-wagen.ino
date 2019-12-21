@@ -1,18 +1,11 @@
-#include <ss_oled.h>
-
-// #define USE_BACKBUFFER
-
-#ifdef USE_BACKBUFFER
-static uint8_t ucBackBuffer[1024];
-#else
-static uint8_t *ucBackBuffer = NULL;
-#endif
 
 int gpioLimitSwitch = 2;
 int gpioObjectDetector = 3;
 int gpioPwmForward = 10;
 int gpioPwmBackward = 11;
 int gpioStartButton = 4;
+
+int gpioIrReceive = 8;
 
 int currentSpeed = 0;
 
@@ -42,21 +35,6 @@ volatile int state = STATE_INITIAL;
 
 void log( String text ) {
   Serial.println( text );
-}
-
-void toDisplay() {
-  int line = 0;
-  writeToDisplay(0, line++, "       state: ", state);
-  writeToDisplay(0, line++, "       speed: ", currentSpeed);
-  writeToDisplay(0, line++, "   direction: ", currentDirection);
-  writeToDisplay(0, line++, "current slot: ", currentSlot);
-  writeToDisplay(0, line++, " target slot: ", targetSlot);
-}
-
-void writeToDisplay( int x, int y, char* text, int value ) {
-  char message[80];
-  sprintf( message, "%s: %d   ", text, value );
-  oledWriteString(0, x, y, message, FONT_SMALL, 0, 1);
 }
 
 void changeState( int newState ) {
@@ -138,21 +116,18 @@ void setup() {
   pinMode( gpioPwmForward, OUTPUT );
   pinMode( gpioPwmBackward, OUTPUT );
 
-  if (oledInit(OLED_128x64, 0, 0, -1, -1, 400000L) != OLED_NOT_FOUND) {
-    oledSetBackBuffer(ucBackBuffer);
-    oledFill(0, 1);
-    oledWriteString(0, 0, 0, "press button to start", FONT_SMALL, 0, 1);
-  }
+  initDisplay();
 
   while ( digitalRead( gpioStartButton ) == HIGH ) {
     delay( 10 );
   }
 
-  oledFill(0, 1);
+  clearDisplay();
   log( "starting" );
 
   attachInterrupt( digitalPinToInterrupt( gpioObjectDetector ), receiveInterruptObjectDetection, CHANGE );
   attachInterrupt( digitalPinToInterrupt( gpioLimitSwitch ), receiveInterruptLimitReached, FALLING );
+  setupIrReceiver();
 }
 
 void adjustSpeed() {
@@ -169,6 +144,7 @@ void adjustSpeed() {
 }
 
 void loop() {
+  irAdjustTargetSlot();
   toDisplay();
 
   if ( currentSpeed != targetSpeed ) {
@@ -190,21 +166,17 @@ void loop() {
       changeTargetSpeed( speedForInit );
     }
     else if ( state == STATE_TARGET_POSITION_REACHED ) {
-      while ( targetSlot == currentSlot ) {
-        targetSlot = random( 1, maxSlot + 1 );
-      }
-
-      log( "new target: " + String( targetSlot ) );
-      delay( 3000 );
-      changeState( STATE_DRIVE_TO_OBJECT );
-      changeTargetSpeed( maxSpeed );
-
-      if ( currentSlot < targetSlot ) {
-        currentDirection = DIRECTION_FORWARD;
-      }
-      else {
-        currentSlot++; // we are just after the current slot, moving backwards will immediately decrease it.
-        currentDirection = DIRECTION_BACKWARD;
+      if ( targetSlot != currentSlot ) {
+        changeState( STATE_DRIVE_TO_OBJECT );
+        changeTargetSpeed( maxSpeed );
+  
+        if ( currentSlot < targetSlot ) {
+          currentDirection = DIRECTION_FORWARD;
+        }
+        else {
+          currentSlot++; // we are just after the current slot, moving backwards will immediately decrease it.
+          currentDirection = DIRECTION_BACKWARD;
+        }
       }
     }
   }
