@@ -9,8 +9,8 @@ static uint8_t *ucBackBuffer = NULL;
 #endif
 
 void initDisplay() {
-  if (oledInit(OLED_128x64, 0, 0, -1, -1, 400000L) != OLED_NOT_FOUND) {
-    oledSetBackBuffer(ucBackBuffer);
+  if (oledInit(OLED_128x64, 0, 0, -1, -1, 400000L) != OLED_NOT_FOUND) { // @suppress("Invalid arguments")
+    oledSetBackBuffer(ucBackBuffer); // @suppress("Invalid arguments")
     oledFill(0, 1);
     oledWriteString(0, 0, 0, "press button to start", FONT_SMALL, 0, 1);
   }
