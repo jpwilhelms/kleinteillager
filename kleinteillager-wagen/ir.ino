@@ -1,4 +1,4 @@
-#include <IRremote.h>
+#include <IRremote.h> // version 2.2.3
 
 IRrecv irrecv(gpioIrReceive);
 
