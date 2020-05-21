@@ -22,11 +22,11 @@ static uint8_t *ucBackBuffer = NULL;
 SSOLED ssoled;
 
 void initDisplay() {
-  if (oledInit(&ssoled, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 400000L) != OLED_NOT_FOUND) {
+  if( oledInit( &ssoled, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 400000L ) != OLED_NOT_FOUND ) {
     Serial.println( "initialized oled display" );
-    oledSetBackBuffer(&ssoled, ucBackBuffer); // @suppress("Invalid arguments")
-    oledFill(&ssoled, 0, 1);
-    oledWriteString(&ssoled, 0, 0, 0, "press button to start", FONT_SMALL, 0, 1);
+    oledSetBackBuffer( &ssoled, ucBackBuffer ); // @suppress("Invalid arguments")
+    oledFill( &ssoled, 0, 1 );
+    oledWriteString( &ssoled, 0, 0, 0, "press button to start", FONT_SMALL, 0, 1 );
   }
   else {
     Serial.println( "error initializing oled display" );
@@ -34,20 +34,20 @@ void initDisplay() {
 }
 
 void clearDisplay() {
-  oledFill(&ssoled, 0, 1);
+  oledFill( &ssoled, 0, 1 );
 }
 
 void toDisplay() {
   int line = 0;
-  writeToDisplay(0, line++, "       state: ", state);
-  writeToDisplay(0, line++, "       speed: ", currentSpeed);
-  writeToDisplay(0, line++, "   direction: ", currentDirection);
-  writeToDisplay(0, line++, "current slot: ", currentSlot);
-  writeToDisplay(0, line++, " target slot: ", targetSlot);
+  writeToDisplay( 0, line++, "       state: ", state );
+  writeToDisplay( 0, line++, "       speed: ", currentSpeed );
+  writeToDisplay( 0, line++, "   direction: ", currentDirection );
+  writeToDisplay( 0, line++, "current slot: ", currentSlot );
+  writeToDisplay( 0, line++, " target slot: ", targetSlot );
 }
 
-void writeToDisplay( int x, int y, char* text, int value ) {
-  char message[80];
+void writeToDisplay( int x, int y, char *text, int value ) {
+  char message[ 80 ];
   sprintf( message, "%s: %d   ", text, value );
-  oledWriteString(&ssoled, 0, x, y, message, FONT_SMALL, 0, 1);
+  oledWriteString( &ssoled, 0, x, y, message, FONT_SMALL, 0, 1 );
 }
