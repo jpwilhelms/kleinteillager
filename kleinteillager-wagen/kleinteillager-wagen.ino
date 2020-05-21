@@ -13,10 +13,8 @@ int currentDirection = 0;
 int targetDirection = 0;
 
 int maxSlot = 6;
-int speedForAdjust = 100;
+int speedForAdjust = 70;
 int speedForInit = 100;
-int speedForBreak = 200;
-int durationForBreakMs = 5;
 int maxSpeed = 140;
 
 int timeForDirectionChangeMs = 500;
@@ -28,9 +26,12 @@ volatile int currentSlot = 0;
 volatile int targetSlot = 0;
 
 #define STATE_INITIAL 0
+#define STATE_MOVING_TO_INITIAL_POSITION 1
 #define STATE_DRIVE_TO_SLOT 2
 #define STATE_OBJECT_DETECTED 3
+#define STATE_TARGET_POSITION_ADJUST_BACKWARD 4
 #define STATE_TARGET_POSITION_REACHED 5
+#define STATE_TARGET_POSITION_ADJUST_FORWARD 6
 
 volatile int state = STATE_INITIAL;
 
@@ -79,32 +80,22 @@ void setup() {
 }
 
 void setMotorDirectionAndSpeed() {
-  if( ((currentDirection != targetDirection) && (currentSpeed != 0)) || ((currentSpeed != 0) && (targetSpeed == 0)) ) {
-    if( currentDirection == DIRECTION_FORWARD ) {
-      analogWrite( gpioPwmForward, 0 );
-      analogWrite( gpioPwmBackward, speedForBreak );
-    }
-    else {
-      analogWrite( gpioPwmBackward, 0 );
-      analogWrite( gpioPwmForward, speedForBreak );
-    }
-
-    delay( durationForBreakMs );
-    analogWrite( gpioPwmForward, 0 );
-    analogWrite( gpioPwmBackward, 0 );
-    currentSpeed = 0;
-    currentDirection = targetDirection;
-  }
-
+  currentDirection = targetDirection;
   currentSpeed = targetSpeed;
 
-  if( currentDirection == DIRECTION_FORWARD ) {
-    analogWrite( gpioPwmBackward, 0 );
-    analogWrite( gpioPwmForward, currentSpeed );
+  if( currentSpeed == 0 ) {
+    analogWrite( gpioPwmBackward, 255 );
+    analogWrite( gpioPwmForward, 255 );
   }
-  else if( currentDirection == DIRECTION_BACKWARD ) {
-    analogWrite( gpioPwmForward, 0 );
-    analogWrite( gpioPwmBackward, currentSpeed );
+  else {
+    if( currentDirection == DIRECTION_FORWARD ) {
+      analogWrite( gpioPwmBackward, 0 );
+      analogWrite( gpioPwmForward, currentSpeed );
+    }
+    else if( currentDirection == DIRECTION_BACKWARD ) {
+      analogWrite( gpioPwmForward, 0 );
+      analogWrite( gpioPwmBackward, currentSpeed );
+    }
   }
 }
 
@@ -159,6 +150,7 @@ void loop() {
     if( state == STATE_INITIAL ) {
       changeTargetSpeed( speedForInit );
       changeTargetDirection( DIRECTION_BACKWARD );
+      changeState( STATE_MOVING_TO_INITIAL_POSITION );
       log( "driving to first slot" );
     }
     else if( (state == STATE_DRIVE_TO_SLOT) && objectDetected() && (currentDirection == DIRECTION_FORWARD) ) {
@@ -177,9 +169,18 @@ void loop() {
         changeState( STATE_DRIVE_TO_SLOT );
       }
       else {
-        changeState( STATE_TARGET_POSITION_REACHED );
-        changeTargetSpeed( 0 );
+        changeState( STATE_TARGET_POSITION_ADJUST_BACKWARD );
+        changeTargetSpeed( speedForAdjust );
+        changeTargetDirection( DIRECTION_BACKWARD );
       }
+    }
+    else if( state == STATE_TARGET_POSITION_ADJUST_BACKWARD && objectDetected() ) {
+      changeState( STATE_TARGET_POSITION_ADJUST_FORWARD );
+      changeTargetDirection( DIRECTION_FORWARD );
+    }
+    else if( state == STATE_TARGET_POSITION_ADJUST_FORWARD && noObjectDetected() ) {
+      changeState( STATE_TARGET_POSITION_REACHED );
+      changeTargetSpeed( 0 );
     }
     else if( (state == STATE_DRIVE_TO_SLOT) && objectDetected() && (currentDirection == DIRECTION_BACKWARD) ) {
       log( "object detected backward" );
@@ -199,17 +200,7 @@ void loop() {
       changeTargetSpeed( maxSpeed );
     }
     else if( state == STATE_TARGET_POSITION_REACHED ) {
-      if( currentSlot == targetSlot ) {
-        changeTargetSpeed( 0 );
-
-        // if breaking pushed the wagon back to the object, try again to reach a good position
-        if( objectDetected() ) {
-          changeCurrentSlot( currentSlot - 1 );
-          changeTargetSpeed( speedForAdjust );
-          changeState( STATE_DRIVE_TO_SLOT );
-        }
-      }
-      else {
+      if( currentSlot != targetSlot ) {
         changeState( STATE_DRIVE_TO_SLOT );
         changeTargetSpeed( maxSpeed );
       }
